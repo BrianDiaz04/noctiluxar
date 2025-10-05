@@ -2,36 +2,63 @@
 <html>
   <head>
     <meta charset="utf-8">
-    <title>Prueba Cámara MindAR</title>
+    <title>Prueba cámara MindAR</title>
 
-    <!-- Librerías necesarias -->
-    <script src="https://cdn.jsdelivr.net/npm/aframe/dist/aframe.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.1.0/dist/mindar-image-aframe.prod.js"></script>
+    <!-- Librerías -->
+    <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.2/dist/mindar-image-aframe.prod.js"></script>
 
     <style>
       html, body {
         margin: 0;
         height: 100%;
         overflow: hidden;
-        background: black;
+        background-color: black;
       }
-      .mindar-ui-overlay {
-        z-index: 2;
+      #permissionButton {
+        position: absolute;
+        z-index: 10;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background: #0b82f0;
+        color: white;
+        padding: 12px 20px;
+        border: none;
+        border-radius: 10px;
+        font-size: 16px;
       }
     </style>
   </head>
 
   <body>
-    <!-- Escena base de A-Frame con MindAR -->
+    <button id="permissionButton">Activar cámara</button>
+
     <a-scene
-      mindar-image="autoStart: true;"
-      color-space="sRGB"
-      renderer="colorManagement: true, physicallyCorrectLights"
+      id="scene"
+      embedded
+      mindar-image="autoStart: false;"
       vr-mode-ui="enabled: false"
-      device-orientation-permission-ui="enabled: true"
+      device-orientation-permission-ui="enabled: false"
     >
-      <!-- Cámara -->
       <a-camera position="0 0 0"></a-camera>
     </a-scene>
+
+    <script>
+      const sceneEl = document.querySelector("#scene");
+      const button = document.querySelector("#permissionButton");
+
+      // Pedimos permiso de cámara de forma manual
+      button.addEventListener("click", async () => {
+        try {
+          // Forzar permiso (en iOS/Safari es obligatorio)
+          await navigator.mediaDevices.getUserMedia({ video: true });
+          button.style.display = "none";
+          sceneEl.components["mindar-image"].start(); // ahora sí inicia MindAR
+        } catch (e) {
+          alert("No se pudo acceder a la cámara: " + e.message);
+        }
+      });
+    </script>
   </body>
 </html>
