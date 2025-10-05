@@ -2,9 +2,8 @@
 <html>
   <head>
     <meta charset="utf-8">
-    <title>Prueba cámara MindAR</title>
+    <title>Prueba cámara MindAR estable</title>
 
-    <!-- Librerías -->
     <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.2/dist/mindar-image-aframe.prod.js"></script>
 
@@ -15,27 +14,28 @@
         overflow: hidden;
         background-color: black;
       }
-      #permissionButton {
+
+      #startButton {
         position: absolute;
         z-index: 10;
         top: 50%;
         left: 50%;
         transform: translate(-50%, -50%);
-        background: #0b82f0;
+        background-color: #0b82f0;
         color: white;
-        padding: 12px 20px;
         border: none;
+        padding: 15px 25px;
+        font-size: 18px;
         border-radius: 10px;
-        font-size: 16px;
       }
     </style>
   </head>
 
   <body>
-    <button id="permissionButton">Activar cámara</button>
+    <button id="startButton">Activar cámara</button>
 
     <a-scene
-      id="scene"
+      id="arScene"
       embedded
       mindar-image="autoStart: false;"
       vr-mode-ui="enabled: false"
@@ -45,18 +45,28 @@
     </a-scene>
 
     <script>
-      const sceneEl = document.querySelector("#scene");
-      const button = document.querySelector("#permissionButton");
+      const startButton = document.getElementById("startButton");
+      const sceneEl = document.getElementById("arScene");
 
-      // Pedimos permiso de cámara de forma manual
-      button.addEventListener("click", async () => {
+      startButton.addEventListener("click", async () => {
         try {
-          // Forzar permiso (en iOS/Safari es obligatorio)
+          // Pedimos permiso explícito de la cámara
           await navigator.mediaDevices.getUserMedia({ video: true });
-          button.style.display = "none";
-          sceneEl.components["mindar-image"].start(); // ahora sí inicia MindAR
-        } catch (e) {
-          alert("No se pudo acceder a la cámara: " + e.message);
+
+          // Ocultamos el botón
+          startButton.style.display = "none";
+
+          // Iniciamos MindAR una vez que la escena esté lista
+          sceneEl.addEventListener("loaded", () => {
+            const mindarComponent = sceneEl.components["mindar-image"];
+            if (mindarComponent) {
+              mindarComponent.start();
+            } else {
+              alert("No se encontró el componente MindAR.");
+            }
+          });
+        } catch (err) {
+          alert("Error al acceder a la cámara: " + err.message);
         }
       });
     </script>
