@@ -1,56 +1,65 @@
 <!DOCTYPE html>
 <html>
   <head>
-    <meta charset="utf-8" />
-    <title>AR Test - MindAR + GitHub Pages</title>
-    <!-- Cargar A-Frame y MindAR -->
-    <script src="https://cdn.jsdelivr.net/npm/aframe@1.4.2/dist/aframe.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.4/dist/mindar-image-aframe.prod.js"></script>
-
+    <meta charset="utf-8">
+    <title>AR con MindAR - Test Tracking</title>
+    <script src="https://cdn.jsdelivr.net/npm/aframe/dist/aframe.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/mind-ar/dist/mindar-image-aframe.prod.js"></script>
     <style>
       html, body {
-        margin: 0;
-        height: 100%;
+        margin: 0; padding: 0;
+        width: 100%; height: 100%;
         overflow: hidden;
         background: black;
       }
+      a-scene {
+        width: 100vw; height: 100vh;
+      }
     </style>
   </head>
-
   <body>
     <a-scene
-      mindar-image="imageTargetSrc: imagen.mind; autoStart: true;"
-      color-space="sRGB"
-      renderer="colorManagement: true, physicallyCorrectLights"
+      mindar-image="imageTargetSrc: ./mi-sticker.mind;"
       vr-mode-ui="enabled: false"
       device-orientation-permission-ui="enabled: true"
       embedded
+      renderer="colorManagement: true; physicallyCorrectLights: true;"
     >
       <a-assets>
-        <video id="myvideo" src="video.mp4" loop crossorigin="anonymous"></video>
+        <video id="miVideo" src="./video.mp4" autoplay loop playsinline crossorigin="anonymous"></video>
       </a-assets>
 
       <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
 
       <a-entity mindar-image-target="targetIndex: 0">
-        <a-plane src="#myvideo" position="0 0 0" rotation="0 0 0" width="1" height="0.5625"></a-plane>
+        <a-plane src="#miVideo" position="0 0 0" height="2.5" width="1.5"></a-plane>
       </a-entity>
     </a-scene>
 
     <script>
-      document.addEventListener("DOMContentLoaded", () => {
-        const video = document.querySelector("#myvideo");
-        const sceneEl = document.querySelector("a-scene");
+      const scene = document.querySelector('a-scene');
+      const video = document.querySelector('#miVideo');
 
-        sceneEl.addEventListener("targetFound", () => {
-          console.log("🎯 Target detectado");
-          video.play();
-        });
+      scene.addEventListener('render-target-loaded', () => {
+        scene.renderer.setSize(window.innerWidth, window.innerHeight);
+      });
+      window.addEventListener('resize', () => {
+        scene.renderer.setSize(window.innerWidth, window.innerHeight);
+      });
 
-        sceneEl.addEventListener("targetLost", () => {
-          console.log("🚫 Target perdido");
-          video.pause();
-        });
+      // Reproducir manualmente si el navegador bloquea autoplay
+      document.body.addEventListener('click', () => {
+        if (video.paused) video.play();
+      });
+
+      // Logs de tracking
+      scene.addEventListener('targetFound', () => {
+        console.log('🎯 Target detectado');
+        video.play();
+      });
+      scene.addEventListener('targetLost', () => {
+        console.log('🚫 Target perdido');
+        video.pause();
       });
     </script>
   </body>
