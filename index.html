@@ -2,73 +2,84 @@
 <html>
   <head>
     <meta charset="utf-8">
-    <title>Prueba cámara MindAR estable</title>
+    <title>AR con Chroma Key (como Onirix)</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.2/dist/mindar-image-aframe.prod.js"></script>
+    <!-- Librerías principales -->
+    <script src="https://aframe.io/releases/1.6.0/aframe.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
 
     <style>
-      html, body {
-        margin: 0;
-        height: 100%;
-        overflow: hidden;
-        background-color: black;
-      }
-
-      #startButton {
-        position: absolute;
-        z-index: 10;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
-        background-color: #0b82f0;
-        color: white;
-        border: none;
-        padding: 15px 25px;
-        font-size: 18px;
-        border-radius: 10px;
-      }
+      body { margin: 0; overflow: hidden; }
+      video { display: none; }
     </style>
   </head>
 
   <body>
-    <button id="startButton">Activar cámara</button>
-
+    <!-- Escena AR -->
     <a-scene
-      id="arScene"
-      embedded
-      mindar-image="autoStart: false;"
+      mindar-image="imageTargetSrc: ./target.mind;"
+      color-space="sRGB"
+      renderer="colorManagement: true, physicallyCorrectLights"
       vr-mode-ui="enabled: false"
       device-orientation-permission-ui="enabled: false"
     >
+      <a-assets>
+        <!-- Video con fondo verde -->
+        <video id="video1" src="./video.mp4" preload="auto" loop muted playsinline crossorigin="anonymous"></video>
+      </a-assets>
+
+      <!-- 🔹 Shader personalizado para eliminar el verde -->
+      <script>
+        AFRAME.registerShader('chroma-key', {
+          schema: {
+            src: {type: 'map'},
+            color: {type: 'color', default: '#00ff00'}, // verde
+            threshold: {type: 'number', default: 0.4}
+          },
+          vertexShader: `
+            varying vec2 vUV;
+            void main() {
+              vUV = uv;
+              gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+            }
+          `,
+          fragmentShader: `
+            uniform sampler2D src;
+            uniform vec3 color;
+            uniform float threshold;
+            varying vec2 vUV;
+
+            void main() {
+              vec4 tex = texture2D(src, vUV);
+              float diff = distance(tex.rgb, color);
+              if (diff < threshold) discard; // hace el fondo transparente
+              gl_FragColor = tex;
+            }
+          `
+        });
+      </script>
+
+      <!-- 🔹 Entidad que aparece sobre el marcador -->
+      <a-entity mindar-image-target="targetIndex: 0">
+        <a-entity geometry="primitive: plane; height: 1; width: 0.56"
+                  material="shader: chroma-key; src: #video1; color: #00ff00; threshold: 0.45"
+                  position="0 0 0"
+                  rotation="0 0 0">
+        </a-entity>
+      </a-entity>
+
+      <!-- Cámara -->
       <a-camera position="0 0 0"></a-camera>
     </a-scene>
 
+    <!-- 🔹 Control de reproducción -->
     <script>
-      const startButton = document.getElementById("startButton");
-      const sceneEl = document.getElementById("arScene");
+      const scene = document.querySelector('a-scene');
+      const video = document.querySelector('#video1');
 
-      startButton.addEventListener("click", async () => {
-        try {
-          // Pedimos permiso explícito de la cámara
-          await navigator.mediaDevices.getUserMedia({ video: true });
-
-          // Ocultamos el botón
-          startButton.style.display = "none";
-
-          // Iniciamos MindAR una vez que la escena esté lista
-          sceneEl.addEventListener("loaded", () => {
-            const mindarComponent = sceneEl.components["mindar-image"];
-            if (mindarComponent) {
-              mindarComponent.start();
-            } else {
-              alert("No se encontró el componente MindAR.");
-            }
-          });
-        } catch (err) {
-          alert("Error al acceder a la cámara: " + err.message);
-        }
-      });
+      scene.addEventListener('targetFound', () => video.play());
+      scene.addEventListener('targetLost', () => video.pause());
     </script>
   </body>
 </html>
