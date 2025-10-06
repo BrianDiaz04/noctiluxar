@@ -2,114 +2,81 @@
 <html>
   <head>
     <meta charset="utf-8">
-    <title>AR con Chroma Key y Cámara Trasera</title>
-    <script src="https://cdn.jsdelivr.net/npm/aframe/dist/aframe.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/mind-ar/dist/mindar-image-aframe.prod.js"></script>
+    <title>AR con Video Chroma Key</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <!-- Librerías -->
+    <script src="https://cdn.jsdelivr.net/npm/aframe@1.6.0/dist/aframe.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/aframe-chromakey-material@1.1.1/dist/aframe-chromakey-material.min.js"></script>
+
     <style>
-      html, body {
+      body {
         margin: 0;
-        padding: 0;
-        width: 100%;
-        height: 100%;
         overflow: hidden;
       }
-      #ar-container {
-        width: 100%;
-        height: 100vh;
-        touch-action: none;
-      }
-      a-scene {
-        width: 100vw;
-        height: 100vh;
+      video {
+        display: none; /* Oculta el video en el DOM */
       }
     </style>
   </head>
+
   <body>
-    <div id="ar-container">
-      <a-scene
-        mindar-image="imageTargetSrc: ./mi-sticker.mind;"
-        vr-mode-ui="enabled: false"
-        device-orientation-permission-ui="enabled: true"
-        embedded
-        renderer="colorManagement: true; physicallyCorrectLights: true;"
-      >
-        <!-- =================== -->
-        <!--   ASSETS DEL VIDEO  -->
-        <!-- =================== -->
-        <a-assets>
-          <video id="miVideo" src="./video.mp4" preload="auto" loop muted playsinline crossorigin="anonymous"></video>
-        </a-assets>
+    <!-- Video con fondo verde -->
+    <video id="miVideo" src="video.mp4" preload="auto" playsinline webkit-playsinline loop></video>
 
-        <!-- =================== -->
-        <!--   SHADER CHROMA KEY -->
-        <!-- =================== -->
-        <script>
-          AFRAME.registerShader('chroma-key', {
-            schema: {
-              src: {type: 'map'},
-              color: {type: 'color', default: '#00ff00'}, // verde a eliminar
-              threshold: {type: 'number', default: 0.4}
-            },
-            vertexShader: `
-              varying vec2 vUV;
-              void main() {
-                vUV = uv;
-                gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-              }
-            `,
-            fragmentShader: `
-              uniform sampler2D src;
-              uniform vec3 color;
-              uniform float threshold;
-              varying vec2 vUV;
-              void main() {
-                vec4 tex = texture2D(src, vUV);
-                float diff = distance(tex.rgb, color);
-                if (diff < threshold) discard; // elimina el fondo verde
-                gl_FragColor = tex;
-              }
-            `
-          });
-        </script>
+    <!-- Escena AR -->
+    <a-scene
+      mindar-image="imageTargetSrc: ./target.mind;"
+      color-space="sRGB"
+      renderer="colorManagement: true, physicallyCorrectLights"
+      vr-mode-ui="enabled: false"
+      device-orientation-permission-ui="enabled: false"
+      embedded
+    >
+      <a-assets>
+        <video id="miVideo" src="video.mp4" preload="auto" playsinline webkit-playsinline loop></video>
+      </a-assets>
 
-        <!-- =================== -->
-        <!--    ENTIDAD AR       -->
-        <!-- =================== -->
-        <a-entity mindar-image-target="targetIndex: 0">
-          <!-- Plano con el shader aplicado -->
-          <a-entity
-            geometry="primitive: plane; height: 2.5; width: 1.5"
-            material="shader: chroma-key; src: #miVideo; color: #00ff00; threshold: 0.45"
-            position="0 0 0"
-            rotation="0 0 0">
-          </a-entity>
-        </a-entity>
+      <!-- Target vacío (el plano se agregará dinámicamente) -->
+      <a-entity mindar-image-target="targetIndex: 0"></a-entity>
 
-        <!-- Cámara -->
-        <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
-      </a-scene>
-    </div>
+      <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
+    </a-scene>
 
-    <!-- =================== -->
-    <!--   SCRIPT DE CONTROL -->
-    <!-- =================== -->
+    <!-- Script -->
     <script>
       const scene = document.querySelector('a-scene');
       const video = document.querySelector('#miVideo');
+      const target = document.querySelector('[mindar-image-target]');
 
-      // Ajuste del tamaño del renderer (fullscreen)
-      scene.addEventListener('render-target-loaded', () => {
-        scene.renderer.setSize(window.innerWidth, window.innerHeight);
+      // Espera a que MindAR esté listo
+      scene.addEventListener('arReady', () => {
+        console.log("✅ MindAR listo");
+
+        // Crea el plano con el shader chroma key
+        const plane = document.createElement('a-plane');
+        plane.setAttribute('height', '1.5');
+        plane.setAttribute('width', '0.85');
+        plane.setAttribute('material', 'shader: chroma-key; src: #miVideo; color: #00ff00; threshold: 0.45');
+        plane.setAttribute('rotation', '0 0 0');
+        plane.setAttribute('position', '0 0 0');
+        target.appendChild(plane);
       });
-      window.addEventListener('resize', () => {
-        scene.renderer.setSize(window.innerWidth, window.innerHeight);
+
+      // Cuando el marcador se detecta
+      scene.addEventListener('targetFound', () => {
+        console.log("🎯 Marcador detectado");
+        video.play();
       });
 
-      // Iniciar video al detectar marcador
-      scene.addEventListener('targetFound', () => video.play());
-      scene.addEventListener('targetLost', () => video.pause());
+      // Cuando el marcador se pierde
+      scene.addEventListener('targetLost', () => {
+        console.log("❌ Marcador perdido");
+        video.pause();
+      });
 
-      // Permitir reproducir en móviles tras un toque
+      // Permitir iniciar el video con toque (móvil)
       document.body.addEventListener('click', () => {
         if (video.paused) video.play();
       });
